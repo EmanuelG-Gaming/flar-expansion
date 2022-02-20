@@ -29,6 +29,20 @@ const flirEyeShoot = new Effect(40, e => {
 	Draw.reset();
 });
 
+const flirShockwave = new Effect(20, e => {
+	Draw.color(Color.white);
+	let w = 12 * 1.5, h = 6 * 1.5;
+	let interp = e.fin();
+	Lines.stroke((1.5 + 1.2 * e.fout()) * Interp.pow5In.apply(e.fslope()));
+	Lines.ellipse(
+       e.x, e.y,
+       5,
+       w * interp, h * interp,
+       e.rotation - 90
+    );
+	Draw.reset();
+});
+
 //dinamic explosion lmfao
 const flirEyeDestruct = new Effect(120, e => {
     let intensity = 2;
@@ -63,6 +77,18 @@ const flirEyeDestruct = new Effect(120, e => {
             });
         });
     }
+	Draw.reset();
+});
+
+const menoShieldAppear = new Effect(40, e => {
+	let args = e.data;
+	Draw.color(Pal.heal);
+	Draw.alpha(0.75 * e.fout());
+	/*
+     * args[0] - shield's size
+     * args[1] - shield's cone
+	*/
+    Lines.swirl(e.x, e.y, args[0] + 6 * e.fin(), args[1], e.rotation - 180 * args[1]);
 	Draw.reset();
 });
 
@@ -152,7 +178,7 @@ const flirBolt = extend(LaserBoltBulletType, {
     despawnEffect: Fx.none,
     hitEffect: flirEyeDestruct,
     smokeEffect: Fx.shootSmallSmoke,
-    shootEffect: flirEyeShoot,
+    shootEffect: new MultiEffect(flirEyeShoot, flirShockwave),
     hitSound: Sounds.explosion,
 });
 
@@ -223,6 +249,7 @@ const shieldDestroyingRange = extend(Ability, {
   },
 });
 
+/*Attack unit section*/
 const flar = extendContent(UnitType, "flar", {
 	 health: 65,
 	 speed: 3.15,
@@ -304,3 +331,100 @@ flir.constructor = () => extend(UnitEntity, {
      Draw.reset();
    },
 });
+
+/*Support Unit Section*/
+const meno = extendContent(UnitType, "meno", {
+	 health: 60,
+	 speed: 1.85,
+	 hitSize: 6,
+	 drag: 0.01,
+	 accel: 0.35,
+	 flying: true,
+	 rotateShooting: false,
+	 rotateSpeed: 4,
+     aimDst: 0.5,
+     range: 30,
+     engineSize: 1.35,
+     engineOffset: 3.65,
+     maxShields: 100,
+}); 
+meno.defaultController = () => extend(BuilderAI, {});
+
+meno.constructor = () => extend(UnitEntity, {
+  shldAngle: 0,
+  shldCone: 0.30, //0 - nothing, 1 - a full circle
+  shldPoints: 0,
+  regenerating: false,
+  draw() {
+    this.super$draw();
+    let size = meno.hitSize * 2; // 1.25
+    let dest = this.angleTo(this.aimX, this.aimY);
+    if (!this.dead) {
+  	if (this.rotateShooting) {
+        this.shldAngle = this.rotation;
+      } else this.shldAngle = Angles.moveToward(this.shldAngle, dest, meno.rotateSpeed * Time.delta * this.speedMultiplier);
+    }
+    Draw.color(Pal.heal);
+    Draw.alpha(Mathf.clamp(0, this.shldPoints, meno.maxShields) / meno.maxShields);
+    Draw.z(Layer.effect);
+    Lines.swirl(this.x, this.y, size, this.shldCone, this.shldAngle - 180 * this.shldCone);
+    Draw.z();
+  },
+  update() {
+    this.super$update();
+    let size = meno.hitSize * 2;
+    Groups.bullet.intersect(this.x - size, this.y - size, size * 2, size * 2).each(b => {
+    	if (b != null && b.team != this.team && b.owner != this) {
+    	   //totally avant stuff here
+    	   let temp = Angles.angle(this.x, this.y, b.x, b.y);
+           let tempDst = Mathf.dst(b.x, b.y, this.x, this.y);
+           if (tempDst <= Math.pow(size, 2) && Angles.within(temp, this.shldAngle, this.shldCone * 180)) {
+    	      // phase's wall deflect goes brr
+              let penX = Math.abs(this.x - b.x), penY = Math.abs(this.y - b.y);
+              if (this.shldPoints > 0) {
+                 if (b.damage > meno.maxShields) {
+                   b.absorb();
+                   this.shieldPoints = 0;
+                 } else {
+                   if (penX > penY) {
+                      b.vel.x *= -1;
+                   } else {
+                      b.vel.y *= -1;
+                   }
+                   b.vel.trns(-b.vel.x, -b.vel.y);
+                   b.owner = this;
+                   b.team = this.team;
+                   b.time += 1; 
+                   this.shldPoints -= Math.max(0, b.damage);
+                 }
+                 if (this.regenerating) {
+                    menoShieldAppear.at(this.x, this.y, this.shldAngle, [size, this.shldCone]);
+                 }
+                 this.regenerating = false;
+              }
+           }
+    	}
+    });
+    if (this.regenerating) this.shldPoints = Mathf.lerpDelta(this.shldPoints, meno.maxShields, 0.005);
+    else {
+       //wait two seconds before regenerating
+       Time.run(120, run(() => {
+      	this.regenerating = true;
+       }));
+    }
+  },
+});
+
+const mino = extendContent(UnitType, "mino", {
+	 health: 230,
+	 speed: 1.25,
+	 hitSize: 9.25,
+	 drag: 0.01,
+	 accel: 0.35,
+	 flying: true,
+     aimDst: 0.5,
+     range: 120,
+     engineOffset: 8.50,
+});
+
+mino.constructor = () => extend(UnitEntity, {});

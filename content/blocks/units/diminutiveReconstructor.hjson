@@ -1,0 +1,23 @@
+size: 2
+update: true
+configurable: true
+saveConfig: true
+noUpdateDisabled: true
+constructTime: 960
+consumes: {
+  power: 1.5
+}
+upgrades: [
+  [flare, flar],
+  
+  [flar, mono],
+  [flar, alpha],
+  [flar, omura],
+]
+requirements: [
+  copper/85
+  lead/45
+  silicon/35
+]
+category: units
+research: air-factory
