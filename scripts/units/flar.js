@@ -1,6 +1,9 @@
 const AI = require("lib/AIs");
 const Snd = require("lib/sounds");
 
+let healA = Pal.heal.cpy();
+healA.a = 0.8;
+
 /***Effects***/
 const flarShieldDissolving = new Effect(120, e => {
   Draw.color(e.color);
@@ -90,6 +93,35 @@ const menoShieldAppear = new Effect(40, e => {
 	*/
     Lines.swirl(e.x, e.y, args[0] + 6 * e.fin(), args[1], e.rotation - 180 * args[1]);
 	Draw.reset();
+});
+
+const minoShoot = new Effect(60, e => {
+   //make the code better, sheeple
+   let rot = e.rotation;
+   let len = 26, escapeLen = 15;
+   let x = Angles.trnsx(rot, len), y = Angles.trnsy(rot, len);
+   
+   Draw.color(Color.white, Pal.heal, e.fin());
+   Lines.stroke(1.4 * e.fslope());
+   //what
+   Tmp.v1.trns(rot + Math.sin(Time.time * 0.01) * 90, Mathf.dst(e.x, e.y, e.x + x, e.y + y));
+   //try calculating the perpendicular opening vector
+   Tmp.v2.trns(rot + 90, escapeLen * Interp.pow5In.apply(e.fin()));
+   
+   //unnecessary FAQ: why didn't you use the Mathf.signs loop? - ~~because it first didn't work, as if I've expected and the second curve started to become a line~~
+   Lines.curve(
+      e.x, e.y,
+      e.x, e.y,
+      e.x + Tmp.v1.x, e.y + Tmp.v1.y,
+      e.x + x + Tmp.v2.x, e.y + y + Tmp.v2.y, 15
+   );
+   Lines.curve(
+      e.x, e.y,
+      e.x, e.y,
+      e.x - Tmp.v1.x, e.y - Tmp.v1.y,
+      e.x + x - Tmp.v2.x, e.y + y - Tmp.v2.y, 15
+   );
+   Draw.reset();
 });
 
 /***Bullets***/
@@ -182,6 +214,30 @@ const flirBolt = extend(LaserBoltBulletType, {
     hitSound: Sounds.explosion,
 });
 
+const minoBeam = extend(ContinuousLaserBulletType, {
+   absorbable: true,
+   keepVelocity: true,
+   length: 20,
+   width: 5,
+   damage: 3.5,
+   colors: [ healA, Pal.heal, Color.white ],
+   hitColor: Pal.heal,
+   lightColor: healA,
+   shootEffect: minoShoot,
+   smokeEffect: Fx.greenLaserChargeSmall,
+   speed: 4,
+   lifetime: 100,
+   drag: 0.035,
+   shake: 0,
+   oscScl: 1,
+   oscMag: 0.5,
+   fadeTime: 120,
+   makeFire: false,
+   incendChance: 0.15,
+   collidesTeam: true,
+   healPercent: 0.05,
+});
+
 /***Weapons***/
 const flerDivergent = extend(Weapon, "flerDivergent", {
     reload: 15,
@@ -212,6 +268,21 @@ const flirEye = extend(Weapon, "flirEye", {
     y: 0,
     rotate: true,
     bullet: flirBolt
+}); 
+
+const minoLaser = extend(Weapon, "minoLaser", {
+    reload: 120,
+    shots: 1,
+    alternate: true,
+    ejectEffect: Fx.none,
+    top: false,
+    shootSound: Sounds.laser,
+    firstShotDelay: Fx.greenLaserChargeSmall.lifetime - 1,
+    mirror: true,
+    x: 3,
+    y: 0,
+    rotate: false,
+    bullet: minoBeam
 }); 
 
 /***Abilities***/
@@ -357,7 +428,7 @@ meno.constructor = () => extend(UnitEntity, {
   regenerating: false,
   draw() {
     this.super$draw();
-    let size = meno.hitSize * 2; // 1.25
+    let size = meno.hitSize * 1.25;
     let dest = this.angleTo(this.aimX, this.aimY);
     if (!this.dead) {
   	if (this.rotateShooting) {
@@ -372,7 +443,7 @@ meno.constructor = () => extend(UnitEntity, {
   },
   update() {
     this.super$update();
-    let size = meno.hitSize * 2;
+    let size = meno.hitSize * 1.25;
     Groups.bullet.intersect(this.x - size, this.y - size, size * 2, size * 2).each(b => {
     	if (b != null && b.team != this.team && b.owner != this) {
     	   //totally avant stuff here
@@ -426,5 +497,6 @@ const mino = extendContent(UnitType, "mino", {
      range: 120,
      engineOffset: 8.50,
 });
+mino.weapons.add(minoLaser);
 
 mino.constructor = () => extend(UnitEntity, {});
