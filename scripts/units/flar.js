@@ -1,8 +1,8 @@
 const AI = require("lib/AIs");
 const Snd = require("lib/sounds");
 
-let healA = Pal.heal.cpy();
-healA.a = 0.8;
+let healA = Tmp.c1.set(Pal.heal);
+healA.a = 0.75;
 
 /***Effects***/
 const flarShieldDissolving = new Effect(120, e => {
@@ -10,7 +10,7 @@ const flarShieldDissolving = new Effect(120, e => {
   Draw.alpha(Math.max(Interp.pow5In.apply(e.fslope()) - 0.15, 0));
   Fill.poly(e.x, e.y, 6, e.rotation);
   e.scaled(20, s => {
-     Draw.color(e.color.cpy().mul(1.25), e.color, s.fin());
+     Draw.color(Tmp.c1.set(e.color).mul(1.25), e.color, s.fin());
      Draw.alpha(s.fout());
      Lines.circle(e.x, e.y, e.rotation * 1.45 * s.fin());
   });
@@ -25,7 +25,7 @@ const flirEyeTrail = new Effect(40, e => {
 
 const flirEyeShoot = new Effect(40, e => {
 	let sideAngle = 90;
-	Draw.color(Color.valueOf("ff9c5a").cpy().mul(1.20));
+	Draw.color(Tmp.c1.set(Color.valueOf("ff9c5a")).mul(1.20));
 	for (let i of Mathf.signs) {
 		Drawf.tri(e.x, e.y, 13 * e.fout(), 24, e.rotation + sideAngle * i);
 	}
@@ -219,7 +219,7 @@ const minoBeam = extend(ContinuousLaserBulletType, {
    keepVelocity: true,
    length: 20,
    width: 5,
-   damage: 3.5,
+   damage: 7.5,
    colors: [ healA, Pal.heal, Color.white ],
    hitColor: Pal.heal,
    lightColor: healA,
@@ -235,7 +235,7 @@ const minoBeam = extend(ContinuousLaserBulletType, {
    makeFire: false,
    incendChance: 0.15,
    collidesTeam: true,
-   healPercent: 0.05,
+   healPercent: 0.25,
 });
 
 /***Weapons***/
