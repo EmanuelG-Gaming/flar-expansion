@@ -219,7 +219,7 @@ const minoBeam = extend(ContinuousLaserBulletType, {
    keepVelocity: true,
    length: 20,
    width: 5,
-   damage: 7.5,
+   damage: 6.5,
    colors: [ healA, Pal.heal, Color.white ],
    hitColor: Pal.heal,
    lightColor: healA,
@@ -235,7 +235,7 @@ const minoBeam = extend(ContinuousLaserBulletType, {
    makeFire: false,
    incendChance: 0.15,
    collidesTeam: true,
-   healPercent: 0.25,
+   healPercent: 0.3,
 });
 
 /***Weapons***/
@@ -271,7 +271,7 @@ const flirEye = extend(Weapon, "flirEye", {
 }); 
 
 const minoLaser = extend(Weapon, "minoLaser", {
-    reload: 120,
+    reload: 160,
     shots: 1,
     alternate: true,
     ejectEffect: Fx.none,
@@ -340,11 +340,11 @@ const fler = extendContent(UnitType, "fler", {
 	 health: 230,
 	 speed: 2.0,
 	 hitSize: 8,
+	 aimDst: 2.4,
+     range: 110,
 	 drag: 0.01,
 	 accel: 0.15,
 	 flying: true,
-     aimDst: 2,
-     range: 120,
      engineOffset: 9,
 }); 
 fler.weapons.add(flerDivergent);
@@ -488,13 +488,13 @@ meno.constructor = () => extend(UnitEntity, {
 
 const mino = extendContent(UnitType, "mino", {
 	 health: 230,
+	 armor: 1,
 	 speed: 1.25,
 	 hitSize: 9.25,
 	 drag: 0.01,
 	 accel: 0.35,
 	 flying: true,
      aimDst: 0.5,
-     range: 120,
      engineOffset: 8.50,
 });
 mino.weapons.add(minoLaser);
