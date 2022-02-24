@@ -290,7 +290,7 @@ const shieldDestroyingRange = extend(Ability, {
   shieldTake: 10,
   cone: 100,
   reload: 120,
-  
+  alpha: 0,
   timer: 0,
   target: null,
   localized() {
@@ -304,16 +304,16 @@ const shieldDestroyingRange = extend(Ability, {
     if (target != null && target.team != unit.team &&
       target.within(unit.getX(), unit.getY(), 64) && target.checkTarget(true, true) && target.isValid()) {
       this.timer += Time.delta;
-      let dest = unit.angleTo(target);
       if (this.timer >= this.reload) { 
-         if (Angles.within(unit.rotation(), dest, this.cone)) {
-             enemy.shield -= Math.min(enemy.shield - this.shieldTake, 0);
-             flarShieldDissolving.at(target.getX(), target.getY(), target.type.hitSize, target.team.color);
-             Draw.z(Layer.bullet);
-             Drawf.laser(unit.team, Core.atlas.find("laser"), Core.atlas.find("laser-end"), unit.getX(), unit.getY(), target.getX(), target.getY(), 0.60);
-         }
+          enemy.shield -= Math.min(enemy.shield - this.shieldTake, 0);
+          flarShieldDissolving.at(target.getX(), target.getY(), target.type.hitSize, target.team.color);
+          this.alpha = 1;
       }
+      Draw.z(Layer.bullet);
+      Draw.alpha(this.alpha);
+      Drawf.laser(unit.team, Core.atlas.find("laser"), Core.atlas.find("laser-end"), unit.getX(), unit.getY(), target.getX(), target.getY(), 0.60);
     }
+    this.alpha = Mathf.lerpDelta(this.alpha, 0, 0.0001);
     Draw.z();
     Draw.reset();
     this.timer = 0;
@@ -418,7 +418,7 @@ const meno = extendContent(UnitType, "meno", {
      engineSize: 1.35,
      engineOffset: 3.65,
      maxShields: 100,
-}); 
+});
 meno.defaultController = () => extend(BuilderAI, {});
 
 meno.constructor = () => extend(UnitEntity, {
@@ -494,7 +494,8 @@ const mino = extendContent(UnitType, "mino", {
 	 drag: 0.01,
 	 accel: 0.35,
 	 flying: true,
-     aimDst: 0.5,
+	 range: 90,
+     aimDst: 10,
      engineOffset: 8.50,
 });
 mino.weapons.add(minoLaser);
