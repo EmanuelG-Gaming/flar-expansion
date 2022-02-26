@@ -12,7 +12,7 @@ upgrades: [
   
   [flar, mono],
   [flar, alpha],
-  [flar, omura],
+  [flar, meno],
 ]
 requirements: [
   copper/85

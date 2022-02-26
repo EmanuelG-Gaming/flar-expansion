@@ -124,6 +124,22 @@ const minoShoot = new Effect(60, e => {
    Draw.reset();
 });
 
+const munoShine = new Effect(20, e => {
+   let lines = 15;
+   let stroke = 8.5 * e.fslope();
+   let candela = 0.2;
+   
+   Lines.stroke(stroke);
+   for (let i = 0; i < lines; i++) {
+      Draw.color(Tmp.c1.set(Pal.heal).mul(lines / (i + 1) + candela));
+      for (let n in Mathf.signs) {
+         Draw.alpha(1 - i / lines);
+         Lines.spikes(e.x, e.y, i, i, 9, (i * e.fin() * 2 + Mathf.randomSeed(e.id, 360)) * n);
+      }
+   }
+   Drawf.light(e.x, e.y, lines * (stroke / 2), Pal.heal, healA.a);
+});
+
 /***Bullets***/
 //flare boss's nano debunked
 const flerArcingLaser = extend(BasicBulletType, {
@@ -238,6 +254,36 @@ const minoBeam = extend(ContinuousLaserBulletType, {
    healPercent: 0.3,
 });
 
+const munoArray = extend(BasicBulletType, {
+	//quad moment
+	sprite: "large-bomb",
+    width: 30,
+    height: 30,
+    maxRange: 30,
+    ignoreRotation: true,
+    backColor: Pal.heal,
+    frontColor: Color.white,
+    mixColorTo: Color.white,
+    hitSound: Sounds.plasmaboom,
+    shootCone: 180,
+    ejectEffect: Fx.none,
+    hitShake: 4,
+    collidesAir: false,
+    lifetime: 30,
+    despawnEffect: munoShine,
+    hitEffect: Fx.massiveExplosion,
+    keepVelocity: false,
+    spin: 2,
+    shrinkX: 0.7,
+    shrinkY: 0.7,
+    speed: 0,
+    collides: false,
+    healPercent: 4,
+    damage: 25,
+    splashDamage: 40,
+    splashDamageRadius: 50,
+});
+
 /***Weapons***/
 const flerDivergent = extend(Weapon, "flerDivergent", {
     reload: 15,
@@ -283,6 +329,19 @@ const minoLaser = extend(Weapon, "minoLaser", {
     y: 0,
     rotate: false,
     bullet: minoBeam
+}); 
+
+const munoBomber = extend(Weapon, "clear-effect", {
+    reload: 30,
+    shots: 1,
+    alternate: true,
+    ejectEffect: Fx.none,
+    top: false,
+    shootSound: Sounds.mineDeploy,
+    x: 0,
+    y: 0,
+    rotate: false,
+    bullet: munoArray
 }); 
 
 /***Abilities***/
@@ -413,60 +472,66 @@ const meno = extendContent(UnitType, "meno", {
 	 flying: true,
 	 rotateShooting: false,
 	 rotateSpeed: 4,
+	 buildSpeed: 0.2,
      aimDst: 0.5,
      range: 30,
      engineSize: 1.35,
      engineOffset: 3.65,
+     
      maxShields: 100,
 });
 meno.defaultController = () => extend(BuilderAI, {});
 
 meno.constructor = () => extend(UnitEntity, {
   shldAngle: 0,
-  shldCone: 0.30, //0 - nothing, 1 - a full circle
   shldPoints: 0,
+  shldCone: 0.30, //0 - nothing, 1 - a full circle
   regenerating: false,
   draw() {
     this.super$draw();
-    let size = meno.hitSize * 1.25;
     let dest = this.angleTo(this.aimX, this.aimY);
     if (!this.dead) {
   	if (this.rotateShooting) {
         this.shldAngle = this.rotation;
       } else this.shldAngle = Angles.moveToward(this.shldAngle, dest, meno.rotateSpeed * Time.delta * this.speedMultiplier);
     }
+    let alpha = Mathf.clamp(0, this.shldPoints, meno.maxShields) / meno.maxShields;
+    
     Draw.color(Pal.heal);
-    Draw.alpha(Mathf.clamp(0, this.shldPoints, meno.maxShields) / meno.maxShields);
     Draw.z(Layer.effect);
-    Lines.swirl(this.x, this.y, size, this.shldCone, this.shldAngle - 180 * this.shldCone);
+    Draw.alpha(Math.max(alpha - 0.5, 0));
+    Lines.lineAngle(this.x, this.y, this.shldAngle - this.shieldToDeg(), this.size());
+    //now try to offset the line, so that it looks like it's on the shield
+    Lines.lineAngle(this.x, this.y, this.shldAngle + this.shieldToDeg() - Math.PI * Lines.getStroke() * 2.5, this.size());
+    Draw.alpha(alpha);
+    Lines.swirl(this.x, this.y, this.size(), this.shldCone, this.shldAngle - this.shieldToDeg());
     Draw.z();
   },
   update() {
     this.super$update();
-    let size = meno.hitSize * 1.25;
+    let size = this.size();
     Groups.bullet.intersect(this.x - size, this.y - size, size * 2, size * 2).each(b => {
     	if (b != null && b.team != this.team && b.owner != this) {
     	   //totally avant stuff here
     	   let temp = Angles.angle(this.x, this.y, b.x, b.y);
            let tempDst = Mathf.dst(b.x, b.y, this.x, this.y);
-           if (tempDst <= Math.pow(size, 2) && Angles.within(temp, this.shldAngle, this.shldCone * 180)) {
+           if (tempDst <= Math.pow(size, 2) && Angles.within(temp, this.shldAngle, this.shieldToDeg())) {
     	      // phase's wall deflect goes brr
               let penX = Math.abs(this.x - b.x), penY = Math.abs(this.y - b.y);
               if (this.shldPoints > 0) {
-                 if (b.damage > meno.maxShields) {
-                   b.absorb();
-                   this.shieldPoints = 0;
-                 } else {
-                   if (penX > penY) {
-                      b.vel.x *= -1;
-                   } else {
-                      b.vel.y *= -1;
+                 if (b.damage <= meno.maxShields) {
+                   if (b.type.reflectable) {
+                     b.trns(-b.vel.x, -b.vel.y);
+                     if (penX > penY) {
+                        b.vel.x *= -1;
+                     } else {
+                        b.vel.y *= -1;
+                     }
+                     b.owner = this;
+                     b.team = this.team;
+                     b.time += 1; 
+                     this.shldPoints -= Math.max(0, b.damage);
                    }
-                   b.vel.trns(-b.vel.x, -b.vel.y);
-                   b.owner = this;
-                   b.team = this.team;
-                   b.time += 1; 
-                   this.shldPoints -= Math.max(0, b.damage);
                  }
                  if (this.regenerating) {
                     menoShieldAppear.at(this.x, this.y, this.shldAngle, [size, this.shldCone]);
@@ -483,6 +548,14 @@ meno.constructor = () => extend(UnitEntity, {
       	this.regenerating = true;
        }));
     }
+  },
+  //size for shields
+  size() {
+    return meno.hitSize * 1.25;
+  },
+  //shield's cone to degrees
+  shieldToDeg() {
+    return this.shldCone * 180;
   },
 });
 
@@ -501,3 +574,21 @@ const mino = extendContent(UnitType, "mino", {
 mino.weapons.add(minoLaser);
 
 mino.constructor = () => extend(UnitEntity, {});
+
+const muno = extendContent(UnitType, "muno", {
+	 health: 550,
+	 armor: 2,
+	 speed: 1.4,
+	 hitSize: 24,
+	 drag: 0.01,
+	 accel: 0.10,
+	 flying: true,
+	 circleTarget: true,
+     aimDst: 2,
+     range: 100,
+     engineOffset: 16.5,
+     engineSize: 4,
+});
+muno.weapons.add(munoBomber);
+
+muno.constructor = () => extend(UnitEntity, {});
