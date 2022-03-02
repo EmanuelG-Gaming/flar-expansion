@@ -284,6 +284,75 @@ const munoArray = extend(BasicBulletType, {
     splashDamageRadius: 50,
 });
 
+const munoSlicer = extend(BasicBulletType, {
+    damage: 14.5, 
+    healPercent: 0.5, 
+    collidesTeam: true,
+    absorbable: false,
+    despawnEffect: Fx.none,
+    shootEffect: Fx.none,
+    backColor: Pal.heal,
+    trailColor: Pal.heal,
+    trailWidth: 5,
+    trailLength: 60,
+    frontColor: Color.white,
+    lifetime: 120,
+    speed: 4,
+    pierce: true,
+    pierceBuilding: true, //for fun
+    weaveMag: 4,
+    weaveScale: 4,
+    width: 5,
+    height: 5,
+    size: 6,
+    bulletRang: 100,
+    maxLen: 5,
+    max: 10,
+    draw(b) {
+       this.super$draw(b);
+       Draw.z(Layer.bullet);
+       Draw.color(Color.white, Pal.heal, b.fin());
+       Fill.circle(b.x, b.y, this.size);
+       Draw.z();
+    },
+    update(b) {
+       this.super$update(b);
+       let bulletRange = this.bulletRang;
+       let trueSize = this.size + Math.sqrt(b.hitSize);
+       
+       //endless rusting moment
+       if (b.fdata != 1) {
+          Tmp.v1.set(b.x, b.y);
+          if (b.owner instanceof Unitc) {
+             Tmp.v1.set(b.owner.aimX, b.owner.aimY);
+          } else if (b.owner instanceof Targeting) {
+             Tmp.v1.set(bullet.owner.targetPos);
+          }
+          b.vel.setAngle(Angles.moveToward(b.rotation(), b.angleTo(Tmp.v1.x, Tmp.v1.y), Time.delta * 261 * b.fin()));
+          Groups.bullet.intersect(b.x - bulletRange, b.y - bulletRange, bulletRange * 2, bulletRange * 2).each(bul => {
+             if (bul != null && bul.team != b.team && bul.within(b.x, b.y, bulletRange) && b.damage <= 250 && bul.type.absorbable) {
+                Tmp.v2.set(b.x, b.y).sub(bul).nor().scl(bul.type.speed);
+                Tmp.v2.setAngle(Angles.moveToward(b.rotation(), b.angleTo(bul.x, bul.y), Time.delta * 261 * b.fin()));
+                //steel!!!
+                if (this.weaveMag > 0) {
+               	b.vel.add(Tmp.v2).limit(this.maxLen).rotate(
+                      Mathf.sin(b.time + Mathf.PI * this.weaveScale / 2, this.weaveScale, this.weaveMag * (Mathf.randomSeed(b.id, 0, 1) == 1 ? -1 : 1)) * Time.delta
+                   );
+                } else {
+               	b.vel.add(Tmp.v2).limit(this.maxLen);
+                }
+                if (bul.within(b.x, b.y, trueSize)) {
+                   bul.absorb();
+                   //bul.type.despawnEffect.at(bul.x, bul.y, bul.rotation());
+                }
+             }
+          });
+          
+          if (b.within(Tmp.v1.x, Tmp.v1.y, b.hitSize)) b.fdata = 1;
+       }
+   },
+});
+
 /***Weapons***/
 const flerDivergent = extend(Weapon, "flerDivergent", {
     reload: 15,
@@ -332,7 +401,7 @@ const minoLaser = extend(Weapon, "minoLaser", {
 }); 
 
 const munoBomber = extend(Weapon, "clear-effect", {
-    reload: 30,
+    reload: 40,
     shots: 1,
     alternate: true,
     ejectEffect: Fx.none,
@@ -342,6 +411,20 @@ const munoBomber = extend(Weapon, "clear-effect", {
     y: 0,
     rotate: false,
     bullet: munoArray
+}); 
+
+const munoKnife = extend(Weapon, "munoKnife", {
+    reload: 20,
+    shots: 1,
+    alternate: true,
+    mirror: true,
+    ejectEffect: Fx.none,
+    top: true,
+    shootSound: Sounds.laser,
+    x: 6,
+    y: - 4.5,
+    rotate: true,
+    bullet: munoSlicer
 }); 
 
 /***Abilities***/
@@ -590,5 +673,6 @@ const muno = extendContent(UnitType, "muno", {
      engineSize: 4,
 });
 muno.weapons.add(munoBomber);
+muno.weapons.add(munoKnife);
 
 muno.constructor = () => extend(UnitEntity, {});
