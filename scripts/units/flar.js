@@ -285,7 +285,7 @@ const munoArray = extend(BasicBulletType, {
 });
 
 const munoSlicer = extend(BasicBulletType, {
-    damage: 14.5, 
+    damage: 12.5, 
     healPercent: 0.5, 
     collidesTeam: true,
     absorbable: false,
@@ -299,7 +299,7 @@ const munoSlicer = extend(BasicBulletType, {
     lifetime: 120,
     speed: 4,
     pierce: true,
-    pierceBuilding: true, //for fun
+    //pierceBuilding: true, //for fun
     weaveMag: 4,
     weaveScale: 4,
     width: 5,
@@ -562,6 +562,19 @@ const meno = extendContent(UnitType, "meno", {
      engineOffset: 3.65,
      
      maxShields: 100,
+     display(unit, table) {
+        this.super$display(unit, table);
+        //nothing really special here, just another health bar
+        table.table(Styles.none, bars => {
+            bars.defaults().growX().height(20).pad(4);
+
+            bars.add(new Bar(
+               () => Core.bundle.get("flar-expansion-shieldHeath"),
+               () => Pal.heal,
+               () => unit.getShields() / this.maxShields
+            ).blink(Color.white));
+        }).growX();
+     },
 });
 meno.defaultController = () => extend(BuilderAI, {});
 
@@ -639,6 +652,9 @@ meno.constructor = () => extend(UnitEntity, {
   //shield's cone to degrees
   shieldToDeg() {
     return this.shldCone * 180;
+  },
+  getShields() {
+    return this.shldPoints;
   },
 });
 
