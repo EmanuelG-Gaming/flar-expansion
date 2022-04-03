@@ -1,0 +1,10 @@
+size: 2
+requirements: [
+  copper/125
+  lead/45
+  silicon/50
+  titanium/40
+  graphite/50
+]
+category: turret
+research: attendant

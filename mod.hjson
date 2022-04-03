@@ -1,6 +1,6 @@
 name: "flar-expansion" 
 displayName: "Flar Expansion" 
 author: "Emanuel G"
-description: "Adds a few smaller units parallel to the Flare and Mono tiers." 
-version: "0.6 Pre-Alpha" 
+description: "Adds a few smaller units parallel to the Flare tiers." 
+version: "0.75 Pre-Alpha" 
 minGameVersion: 130.1

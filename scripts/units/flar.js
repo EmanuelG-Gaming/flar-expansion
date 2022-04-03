@@ -1,5 +1,6 @@
 const AI = require("lib/AIs");
 const Snd = require("lib/sounds");
+const Event = require("lib/sectorEvents");
 
 let healA = Tmp.c1.set(Pal.heal);
 healA.a = 0.75;
@@ -14,13 +15,11 @@ const flarShieldDissolving = new Effect(120, e => {
      Draw.alpha(s.fout());
      Lines.circle(e.x, e.y, e.rotation * 1.45 * s.fin());
   });
-  Draw.reset();
 }); 
 
 const flirEyeTrail = new Effect(40, e => {
 	Draw.color(Color.valueOf("ff9c5a"));
 	Fill.circle(e.x, e.y, e.rotation * e.fout());
-	Draw.reset();
 });
 
 const flirEyeShoot = new Effect(40, e => {
@@ -29,7 +28,6 @@ const flirEyeShoot = new Effect(40, e => {
 	for (let i of Mathf.signs) {
 		Drawf.tri(e.x, e.y, 13 * e.fout(), 24, e.rotation + sideAngle * i);
 	}
-	Draw.reset();
 });
 
 const flirShockwave = new Effect(20, e => {
@@ -43,7 +41,6 @@ const flirShockwave = new Effect(20, e => {
        w * interp, h * interp,
        e.rotation - 90
     );
-	Draw.reset();
 });
 
 //dinamic explosion lmfao
@@ -80,7 +77,6 @@ const flirEyeDestruct = new Effect(120, e => {
             });
         });
     }
-	Draw.reset();
 });
 
 const menoShieldAppear = new Effect(40, e => {
@@ -92,7 +88,6 @@ const menoShieldAppear = new Effect(40, e => {
      * args[1] - shield's cone
 	*/
     Lines.swirl(e.x, e.y, args[0] + 6 * e.fin(), args[1], e.rotation - 180 * args[1]);
-	Draw.reset();
 });
 
 const minoShoot = new Effect(60, e => {
@@ -121,7 +116,6 @@ const minoShoot = new Effect(60, e => {
       e.x - Tmp.v1.x, e.y - Tmp.v1.y,
       e.x + x - Tmp.v2.x, e.y + y - Tmp.v2.y, 15
    );
-   Draw.reset();
 });
 
 const munoShine = new Effect(20, e => {
@@ -230,6 +224,27 @@ const flirBolt = extend(LaserBoltBulletType, {
     hitSound: Sounds.explosion,
 });
 
+//complementary lightning branch
+const menoBranch = extend(LightningBulletType, {
+   lightningColor: Pal.heal,
+   lightningLength: 5,
+   speed: 0.001, 
+   lifetime: 20,
+   damage: 2,
+   buildingDamageMultiplier: 0.5,
+});
+
+const menoCascade = extend(LightningBulletType, {
+   lightningColor: Pal.heal,
+   lightningLength: 15,
+   lightningType: menoBranch,
+   speed: 0.001, 
+   lifetime: 50,
+   damage: 10,
+   buildingDamageMultiplier: 0.5,
+   status: StatusEffects.shocked,
+});
+
 const minoBeam = extend(ContinuousLaserBulletType, {
    absorbable: true,
    keepVelocity: true,
@@ -305,43 +320,46 @@ const munoSlicer = extend(BasicBulletType, {
     width: 5,
     height: 5,
     size: 6,
+    hitSize: 12,
+    
     bulletRang: 100,
-    maxLen: 5,
-    max: 10,
+    maxLen: 2,
+    max: 12,
     draw(b) {
        this.super$draw(b);
        Draw.z(Layer.bullet);
        Draw.color(Color.white, Pal.heal, b.fin());
        Fill.circle(b.x, b.y, this.size);
        Draw.z();
+       Draw.reset();
     },
     update(b) {
        this.super$update(b);
        let bulletRange = this.bulletRang;
-       let trueSize = this.size + Math.sqrt(b.hitSize);
        
        //endless rusting moment
        if (b.fdata != 1) {
           Tmp.v1.set(b.x, b.y);
           if (b.owner instanceof Unitc) {
              Tmp.v1.set(b.owner.aimX, b.owner.aimY);
-          } else if (b.owner instanceof Targeting) {
-             Tmp.v1.set(bullet.owner.targetPos);
+          } else if (b.owner instanceof Turret.TurretBuild) {
+             Tmp.v1.set(b.owner.targetPos);
           }
           b.vel.setAngle(Angles.moveToward(b.rotation(), b.angleTo(Tmp.v1.x, Tmp.v1.y), Time.delta * 261 * b.fin()));
           Groups.bullet.intersect(b.x - bulletRange, b.y - bulletRange, bulletRange * 2, bulletRange * 2).each(bul => {
-             if (bul != null && bul.team != b.team && bul.within(b.x, b.y, bulletRange) && b.damage <= 250 && bul.type.absorbable) {
+             if (bul != null && bul.team != b.team && bul.within(b.x, b.y, bulletRange) && bul.damage < this.max && bul.type.absorbable) {
                 Tmp.v2.set(b.x, b.y).sub(bul).nor().scl(bul.type.speed);
                 Tmp.v2.setAngle(Angles.moveToward(b.rotation(), b.angleTo(bul.x, bul.y), Time.delta * 261 * b.fin()));
                 //steel!!!
                 if (this.weaveMag > 0) {
-               	b.vel.add(Tmp.v2).limit(this.maxLen).rotate(
+                   //b.speed is actually different from this.speed, becuase it can actually change, when the bullet exists
+               	b.vel.add(Tmp.v2).limit(this.maxLen + this.speed).rotate(
                       Mathf.sin(b.time + Mathf.PI * this.weaveScale / 2, this.weaveScale, this.weaveMag * (Mathf.randomSeed(b.id, 0, 1) == 1 ? -1 : 1)) * Time.delta
                    );
                 } else {
-               	b.vel.add(Tmp.v2).limit(this.maxLen);
+               	b.vel.add(Tmp.v2).limit(this.maxLen + this.speed);
                 }
-                if (bul.within(b.x, b.y, trueSize)) {
+                if (bul.within(b.x, b.y, this.trueSize(b))) {
                    bul.absorb();
                    //bul.type.despawnEffect.at(bul.x, bul.y, bul.rotation());
                 }
@@ -350,6 +368,9 @@ const munoSlicer = extend(BasicBulletType, {
           
           if (b.within(Tmp.v1.x, Tmp.v1.y, b.hitSize)) b.fdata = 1;
        }
+   },
+   trueSize(bul) {
+   	return this.size + Math.sqrt(bul.hitSize);
    },
 });
 
@@ -385,8 +406,24 @@ const flirEye = extend(Weapon, "flirEye", {
     bullet: flirBolt
 }); 
 
+const menoShock = extend(Weapon, "menoShock", {
+    reload: 30,
+    alternate: false,
+    ejectEffect: Fx.none,
+    top: false,
+    shots: 1,
+    inaccuracy: 0.30 * 180,
+    shootSound: Sounds.spark,
+    mirror: false,
+    x: 0,
+    y: 0,
+    rotate: true,
+    rotateSpeed: 4.5,
+    bullet: menoCascade
+});
+
 const minoLaser = extend(Weapon, "minoLaser", {
-    reload: 160,
+    reload: 80,
     shots: 1,
     alternate: true,
     ejectEffect: Fx.none,
@@ -547,7 +584,7 @@ flir.constructor = () => extend(UnitEntity, {
 
 /*Support Unit Section*/
 const meno = extendContent(UnitType, "meno", {
-	 health: 60,
+	 health: 70,
 	 speed: 1.85,
 	 hitSize: 6,
 	 drag: 0.01,
@@ -557,11 +594,43 @@ const meno = extendContent(UnitType, "meno", {
 	 rotateSpeed: 4,
 	 buildSpeed: 0.2,
      aimDst: 0.5,
-     range: 30,
+     range: 60,
      engineSize: 1.35,
      engineOffset: 3.65,
      
-     maxShields: 100,
+     maxShields: 70,
+     setStats() {
+        this.super$setStats();
+        // Basically some messy UI code here
+        // flar bos
+        const shield = new StatValue({
+           display(d) {
+           	d.table(Styles.none, t => {
+           	    let width = 160 * 2;
+                   t.defaults().padBottom(4);
+           	    t.add("The Shield").padLeft(4).row();
+                   t.table(Styles.none, tt => {
+                   	tt.defaults().left();
+                   	tt.add("Shield points:").color(Color.lightGray);
+                       tt.add(new Bar(
+                          () => "70",
+                          () => Pal.heal,
+                          () => 1 
+                       )).size(130, 25).padLeft(4);
+                   }).padLeft(4).left().growX().row();
+                   t.add("Average passive health regen: " + (0.005 * 60) + "/t").color(Color.lightGray).padLeft(4).left().row();
+                   t.image(Tex.whiteui, Pal.gray).growX().size(width, 3.5).row();
+                   t.pane(Styles.defaultPane, p => {
+                   	 p.labelWrap(
+                            Core.bundle.get("flar-expansion-shield.description"),
+                        ).size(width, 0).color(Color.lightGray);
+                   }).size(width + 10, 120);
+               }).margin(4).padLeft(2).center();
+           },
+        });
+        
+        this.stats.add(Stat.abilities, shield);
+     },
      display(unit, table) {
         this.super$display(unit, table);
         //nothing really special here, just another health bar
@@ -577,6 +646,7 @@ const meno = extendContent(UnitType, "meno", {
      },
 });
 meno.defaultController = () => extend(BuilderAI, {});
+meno.weapons.add(menoShock);
 
 meno.constructor = () => extend(UnitEntity, {
   shldAngle: 0,
@@ -602,6 +672,7 @@ meno.constructor = () => extend(UnitEntity, {
     Draw.alpha(alpha);
     Lines.swirl(this.x, this.y, this.size(), this.shldCone, this.shldAngle - this.shieldToDeg());
     Draw.z();
+    Draw.reset();
   },
   update() {
     this.super$update();
@@ -615,7 +686,7 @@ meno.constructor = () => extend(UnitEntity, {
     	      // phase's wall deflect goes brr
               let penX = Math.abs(this.x - b.x), penY = Math.abs(this.y - b.y);
               if (this.shldPoints > 0) {
-                 if (b.damage <= meno.maxShields) {
+                 if (b.damage < meno.maxShields) {
                    if (b.type.reflectable) {
                      b.trns(-b.vel.x, -b.vel.y);
                      if (penX > penY) {
@@ -629,6 +700,12 @@ meno.constructor = () => extend(UnitEntity, {
                      this.shldPoints -= Math.max(0, b.damage);
                    }
                  }
+                 else {
+                 	b.absorb();
+                     this.shldPoints = 0;
+                     let reply = "BOOM!";
+                     Event.showMoving(reply, 1, this);
+                 }
                  if (this.regenerating) {
                     menoShieldAppear.at(this.x, this.y, this.shldAngle, [size, this.shldCone]);
                  }
@@ -639,10 +716,10 @@ meno.constructor = () => extend(UnitEntity, {
     });
     if (this.regenerating) this.shldPoints = Mathf.lerpDelta(this.shldPoints, meno.maxShields, 0.005);
     else {
-       //wait two seconds before regenerating
-       Time.run(120, run(() => {
-      	this.regenerating = true;
-       }));
+       //wait three seconds before regenerating
+       Timer.schedule(() => {
+          this.regenerating = true;
+       }, 3);
     }
   },
   //size for shields

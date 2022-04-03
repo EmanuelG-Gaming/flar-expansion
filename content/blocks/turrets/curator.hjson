@@ -1,0 +1,11 @@
+size: 3
+requirements: [
+  copper/225
+  metaglass/75
+  silicon/230
+  titanium/110
+  plastanium/55
+  graphite/50
+]
+category: turret
+research: custodian

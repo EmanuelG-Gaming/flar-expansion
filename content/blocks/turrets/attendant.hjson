@@ -1,0 +1,9 @@
+size: 1
+requirements: [
+  copper/45
+  lead/20
+  silicon/30
+  titanium/25
+]
+category: turret
+research: repair-point

@@ -1,0 +1,10 @@
+size: 4
+requirements: [
+  copper/650
+  silicon/500
+  titanium/150
+  plastanium/120
+  phase-fabric/50
+]
+category: turret
+research: curator
